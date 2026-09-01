@@ -1,24 +1,26 @@
 package com.easylive.aspect;
 
 import cn.hutool.core.util.StrUtil;
+import com.easylive.annotation.GlobalInterceptor;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.entity.vo.UserLoginDto;
 import com.easylive.enums.ResponseCodeEnum;
 import com.easylive.exception.BusinessException;
-import com.easylive.redis.RedisComponent;
 import com.easylive.redis.RedisUtils;
 import com.easylive.utils.CookieUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-import com.easylive.annotation.GlobalInterceptor;
-import java.lang.reflect.Method;
-import org.aspectj.lang.reflect.MethodSignature;
+
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.lang.reflect.Method;
 
 @Component("operationAspect")
 @Aspect
@@ -29,7 +31,7 @@ public class GlobalOperationAspect {
     private RedisUtils redisUtils;
 
     @Resource
-    private RedisComponent redisComponent;
+    private UserAuthComponent userAuthComponent;
 
     @Before("@annotation(com.easylive.annotation.GlobalInterceptor)")
     public void interceptorDo(JoinPoint point) {
@@ -42,15 +44,14 @@ public class GlobalOperationAspect {
             checkLogin();
         }
     }
-    //校验登录
+
     private void checkLogin() {
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
-        String token = CookieUtil.getCookieToken(request);
-        if (!StrUtil.isEmpty(token)) {
-            UserLoginDto tokenUserInfoDto = redisComponent.getTokenUserInfoDto(request);
-            if (tokenUserInfoDto != null) {
-                return;
-            }
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        HttpServletRequest request = attributes.getRequest();
+        HttpServletResponse response = attributes.getResponse();
+        UserLoginDto tokenUserInfoDto = userAuthComponent.resolveUser(request, response);
+        if (tokenUserInfoDto != null) {
+            return;
         }
         // 管理端上传等场景：允许 adminToken
         String adminToken = CookieUtil.adminGetCookieToken(request);

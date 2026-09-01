@@ -6,6 +6,17 @@ public class Constants {
     public static final Integer ONE_MIN_MILLS = 60000;
     public static final String PASSWORD_REGEXP = "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{8,18}$";
     public static final String REDIS_KEY_LOGIN_TOKEN = REDIS_KEY_PREFIX+"token:";
+    /** Refresh Token：easylive:rt:{uuid} -> userId */
+    public static final String REDIS_KEY_REFRESH_TOKEN = REDIS_KEY_PREFIX + "rt:";
+    /** 用户当前 RT：easylive:user:rt:{userId} -> uuid（单端登录） */
+    public static final String REDIS_KEY_USER_REFRESH_TOKEN = REDIS_KEY_PREFIX + "user:rt:";
+    public static final String COOKIE_ACCESS_TOKEN = "accessToken";
+    public static final String COOKIE_REFRESH_TOKEN = "refreshToken";
+    /** Access Token（JWT）有效期：30 分钟 */
+    public static final long JWT_ACCESS_EXPIRE_SECONDS = 30 * 60L;
+    /** Refresh Token 有效期：9 天（毫秒，配合 RedisUtils.setex） */
+    public static final long REFRESH_TOKEN_EXPIRE_MS = ONE_MIN_MILLS * 60L * 24 * 9;
+    public static final int REFRESH_TOKEN_COOKIE_MAX_AGE = 60 * 60 * 24 * 9;
     public static final String REDIS_KEY_ADMIN_TOKEN = REDIS_KEY_PREFIX+"admin:token:";
     public static final String REDIS_KEY_CATEGORY_LIST = REDIS_KEY_PREFIX+"category:list";
     public static final String IMAGE_THUMBNAIL_SUFFIX = "_thumbnail.jpg";

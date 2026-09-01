@@ -25,6 +25,9 @@ public class AppConfig {
 
     @Value("${es.index.video.name:easylive_video}")
     private String esIndexVideoName;
+
+    @Value("${jwt.secret:easylive-jwt-secret-change-me}")
+    private String jwtSecret;
 }
 
 

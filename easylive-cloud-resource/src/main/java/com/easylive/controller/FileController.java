@@ -16,7 +16,6 @@ import com.easylive.enums.DateTimePatternEnum;
 import com.easylive.enums.ResponseCodeEnum;
 import com.easylive.exception.BusinessException;
 import com.easylive.redis.RedisComponent;
-import com.easylive.redis.RedisUtils;
 import com.easylive.utils.CookieUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
@@ -45,8 +44,6 @@ import static com.easylive.entity.vo.ResponseVO.getSuccessResponseVO;
 public class FileController {
     @Autowired
     private AppConfig appConfig;
-    @Autowired
-    private RedisUtils redisUtils;
     @Autowired
     private RedisComponent redisComponent;
     @Autowired
@@ -78,8 +75,7 @@ public class FileController {
     @GlobalInterceptor(checkLogin = true)
     @RequestMapping("/preUploadVideo")
     public ResponseVO preUploadVideo(@NotEmpty String fileName, @NotNull Integer chunks, HttpServletRequest request) {
-        String token = CookieUtil.getCookieToken(request);
-        UserLoginDto userLoginDto = (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+        UserLoginDto userLoginDto = redisComponent.getTokenUserInfoDto(request);
         String uploadId = redisComponent.savePreVideoFileInfo(userLoginDto.getUserId(), fileName, chunks);
         return getSuccessResponseVO(uploadId);
     }
@@ -87,8 +83,7 @@ public class FileController {
     @RequestMapping("/uploadVideo")
     @GlobalInterceptor(checkLogin = true)
     public ResponseVO uploadVideo(@NotNull MultipartFile chunkFile,@NotNull Integer chunkIndex, @NotEmpty String uploadId,HttpServletRequest request) throws IOException {
-        String token = CookieUtil.getCookieToken(request);
-        UserLoginDto userLoginDto = (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+        UserLoginDto userLoginDto = redisComponent.getTokenUserInfoDto(request);
         UploadingFileDto uploadingFileDto = redisComponent.getUploadingVideoFile(userLoginDto.getUserId(), uploadId);
         if(uploadingFileDto==null){
             throw new BusinessException("文件不存在,请重新上传！");
@@ -115,8 +110,7 @@ public class FileController {
     @GlobalInterceptor(checkLogin = true)
     public ResponseVO delUploadVideo(@NotEmpty String uploadId ,HttpServletRequest request) throws IOException {
         //获取用户id
-        String token = CookieUtil.getCookieToken(request);
-        UserLoginDto tokenUserInfoDto = (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+        UserLoginDto tokenUserInfoDto = redisComponent.getTokenUserInfoDto(request);
         //获取文件dto对象
         UploadingFileDto fileDto = redisComponent.getUploadingVideoFile(tokenUserInfoDto.getUserId(), uploadId);
         if (fileDto == null) {
@@ -172,9 +166,12 @@ public class FileController {
         videoPlayInfoDto.setVideoId(videoInfoFile.getVideoId());
         videoPlayInfoDto.setFileIndex(videoInfoFile.getFileIndex());
 
-        String token = CookieUtil.getCookieToken(request);
+        String token = CookieUtil.getAccessToken(request);
+        if (StrUtil.isEmpty(token)) {
+            token = CookieUtil.getCookieValue(request, "token");
+        }
         if (token != null) {
-            UserLoginDto tokenUserInfoDto = (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+            UserLoginDto tokenUserInfoDto = redisComponent.getTokenUserInfoDto(request);
             if (tokenUserInfoDto != null) {
                 videoPlayInfoDto.setUserId(tokenUserInfoDto.getUserId());
             }

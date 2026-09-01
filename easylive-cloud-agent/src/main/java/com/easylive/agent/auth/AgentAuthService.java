@@ -1,29 +1,22 @@
 package com.easylive.agent.auth;
 
-import com.easylive.entity.constants.Constants;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.entity.vo.UserLoginDto;
-import com.easylive.redis.RedisUtils;
-import com.easylive.utils.CookieUtil;
 import org.springframework.stereotype.Service;
 
 import javax.servlet.http.HttpServletRequest;
 
-/** 从项目现有 HttpOnly 登录 Cookie 中解析当前用户，不信任前端传入的用户 ID。 */
+/** 从双令牌 Cookie 解析当前用户（Access 过期时静默续期），不信任前端传入的用户 ID。 */
 @Service
 public class AgentAuthService {
 
-    private final RedisUtils redisUtils;
+    private final UserAuthComponent userAuthComponent;
 
-    public AgentAuthService(RedisUtils redisUtils) {
-        this.redisUtils = redisUtils;
+    public AgentAuthService(UserAuthComponent userAuthComponent) {
+        this.userAuthComponent = userAuthComponent;
     }
 
     public UserLoginDto getCurrentUser(HttpServletRequest request) {
-        String token = CookieUtil.getCookieToken(request);
-        if (token == null || token.trim().isEmpty()) {
-            return null;
-        }
-        Object value = redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
-        return value instanceof UserLoginDto ? (UserLoginDto) value : null;
+        return userAuthComponent.resolveUser(request);
     }
 }

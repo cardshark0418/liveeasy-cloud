@@ -9,6 +9,9 @@ spring:
     port: 6379
     database: 0
 
+jwt:
+  secret: easylive-jwt-secret-change-me
+
 agent:
   model:
     # 请在 Nacos 控制台填写实际密钥，不要提交到 Git

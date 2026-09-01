@@ -47,6 +47,9 @@ admin:
   account: admin
   password: admin123
 
+jwt:
+  secret: easylive-jwt-secret-change-me
+
 seata:
   enabled: true
   application-id: easylive-cloud-web

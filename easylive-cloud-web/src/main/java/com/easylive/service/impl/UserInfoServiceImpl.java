@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.entity.constants.Constants;
 import com.easylive.entity.po.UserFocus;
 import com.easylive.entity.po.UserInfo;
@@ -16,9 +17,7 @@ import com.easylive.mapper.UserFocusMapper;
 import com.easylive.mapper.UserInfoMapper;
 import com.easylive.mapper.VideoInfoMapper;
 import com.easylive.redis.RedisComponent;
-import com.easylive.redis.RedisUtils;
 import com.easylive.service.UserInfoService;
-import com.easylive.utils.CookieUtil;
 import com.github.yulichang.base.MPJBaseServiceImpl;
 import com.github.yulichang.wrapper.MPJLambdaWrapper;
 import io.seata.spring.annotation.GlobalTransactional;
@@ -38,13 +37,13 @@ public class UserInfoServiceImpl extends MPJBaseServiceImpl<UserInfoMapper,UserI
     @Autowired
     private UserInfoMapper userInfoMapper;
     @Autowired
-    private RedisUtils redisUtils;
-    @Autowired
     private VideoInfoMapper videoInfoMapper;
     @Autowired
     private UserFocusMapper userFocusMapper;
     @Autowired
     private RedisComponent redisComponent;
+    @Autowired
+    private UserAuthComponent userAuthComponent;
 
     @Override
     public void register(String email, String nickName, String password) {
@@ -86,15 +85,8 @@ public class UserInfoServiceImpl extends MPJBaseServiceImpl<UserInfoMapper,UserI
         userInfoMapper.update(updateInfo,wrapper);
         //构造dto对象
         UserLoginDto userLoginDto = BeanUtil.copyProperties(userInfo, UserLoginDto.class);
-        String token = UUID.randomUUID().toString();
-        userLoginDto.setExpireAt((System.currentTimeMillis()+Constants.ONE_MIN_MILLS*60*24*7));
-        userLoginDto.setToken(token);
         userLoginDto.setStatus(1);
-        //token存储到redis
-        redisUtils.setex(Constants.REDIS_KEY_LOGIN_TOKEN+token,userLoginDto,  Constants.ONE_MIN_MILLS  *60*24*7);
-        redisUtils.setex(Constants.REDIS_KEY_USER_TOKEN + userLoginDto.getUserId(), token, Constants.ONE_MIN_MILLS  *60*24*7);
-        //设置cookie
-        CookieUtil.setToken2Cookie(response,token);
+        userAuthComponent.issueTokens(userLoginDto, response);
         return userLoginDto;
     }
 

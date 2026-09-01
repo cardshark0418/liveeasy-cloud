@@ -2,6 +2,7 @@ package com.easylive.redis;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.RandomUtil;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.config.AppConfig;
 import com.easylive.entity.constants.Constants;
 import com.easylive.entity.po.VideoInfoFilePost;
@@ -14,12 +15,14 @@ import com.easylive.entity.vo.UploadingFileDto;
 import com.easylive.entity.vo.UserLoginDto;
 import com.easylive.entity.vo.VideoPlayInfoDto;
 import com.easylive.enums.DateTimePatternEnum;
-import com.easylive.utils.CookieUtil;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -34,6 +37,9 @@ public class RedisComponent {
 
     @Resource
     private AppConfig appConfig;
+
+    @Resource
+    private UserAuthComponent userAuthComponent;
 
     public String savePreVideoFileInfo(String userId,String fileName,Integer chunks){
         String uploadId = RandomUtil.randomString(10);
@@ -107,8 +113,7 @@ public class RedisComponent {
     }
 
     public UserLoginDto getTokenUserInfoDto(HttpServletRequest request){
-        String token = CookieUtil.getCookieToken(request);
-        return (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+        return userAuthComponent.resolveUser(request);
     }
 
     public Integer reportVideoPlayOnline(String fileId, String deviceId) {
@@ -128,7 +133,15 @@ public class RedisComponent {
     }
 
     public void updateTokenInfo(UserLoginDto tokenUserInfoDto) {
-        redisUtils.setex(Constants.REDIS_KEY_LOGIN_TOKEN + tokenUserInfoDto.getToken(), tokenUserInfoDto, Constants.REDIS_KEY_EXPIRES_DAY * 7);
+        HttpServletResponse response = currentResponse();
+        if (response != null) {
+            userAuthComponent.reissueAccessToken(tokenUserInfoDto, response);
+        }
+    }
+
+    private HttpServletResponse currentResponse() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        return attrs == null ? null : attrs.getResponse();
     }
 
     public void addKeywordCount(String keyword) {

@@ -15,7 +15,9 @@ import com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration;
 @ComponentScan(basePackages = {
         "com.easylive.agent",
         "com.easylive.redis",
-        "com.easylive.config"
+        "com.easylive.config",
+        "com.easylive.auth",
+        "com.easylive.utils"
 })
 @EnableDiscoveryClient
 @EnableFeignClients

@@ -10,5 +10,8 @@ spring:
 project:
   folder: D:/easylive-data
 
+jwt:
+  secret: easylive-jwt-secret-change-me
+
 seata:
   enabled: false

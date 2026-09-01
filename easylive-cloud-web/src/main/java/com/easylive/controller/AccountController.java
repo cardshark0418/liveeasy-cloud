@@ -5,6 +5,7 @@ import cn.hutool.extra.servlet.ServletUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 
 import com.easylive.annotation.GlobalInterceptor;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.entity.constants.Constants;
 import com.easylive.entity.po.UserFocus;
 import com.easylive.entity.po.UserInfo;
@@ -17,14 +18,12 @@ import com.easylive.redis.RedisComponent;
 import com.easylive.redis.RedisUtils;
 import com.easylive.service.UserFocusService;
 import com.easylive.service.UserInfoService;
-import com.easylive.utils.CookieUtil;
 import com.wf.captcha.ArithmeticCaptcha;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.constraints.Email;
@@ -45,6 +44,8 @@ public class AccountController {
     private RedisComponent redisComponent;
     @Autowired
     private UserFocusService userFocusService;
+    @Autowired
+    private UserAuthComponent userAuthComponent;
 
     @Autowired
     private UserInfoService userInfoService;
@@ -97,46 +98,19 @@ public class AccountController {
         }
     }
 
-    @RequestMapping("autoLogin")
-    public ResponseVO autoLogin(
-                            HttpServletResponse response,
-                            HttpServletRequest request){
-        String token = CookieUtil.getCookieToken(request);
-        if(StrUtil.isEmpty(token)){
-            return getSuccessResponseVO(null);
-        }
-        UserLoginDto userLoginDto = (UserLoginDto)redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
-        if(userLoginDto==null){
-            return  getSuccessResponseVO(null);
-        }
-        long tokenExpireMs = Constants.ONE_MIN_MILLS * 60 * 24 * 7;
-        if(userLoginDto.getExpireAt() - System.currentTimeMillis() < Constants.ONE_MIN_MILLS*60*24){
-            redisUtils.delete(Constants.REDIS_KEY_LOGIN_TOKEN+token);
-            redisUtils.delete(Constants.REDIS_KEY_USER_TOKEN + userLoginDto.getUserId());
-            String newToken = UUID.randomUUID().toString();
-            userLoginDto.setToken(newToken);
-            userLoginDto.setExpireAt(System.currentTimeMillis() + tokenExpireMs);
-            CookieUtil.setToken2Cookie(response,newToken);
-            redisUtils.setex(Constants.REDIS_KEY_LOGIN_TOKEN+newToken,userLoginDto, tokenExpireMs);
-            redisUtils.setex(Constants.REDIS_KEY_USER_TOKEN + userLoginDto.getUserId(), newToken, tokenExpireMs);
-        }
-        return ResponseVO.getSuccessResponseVO(userLoginDto);
+    /**
+     * 页面初始化拉取登录态（Cookie 自动携带；Access 过期时服务端静默续期）。
+     * 替代旧 autoLogin。
+     */
+    @RequestMapping("getLoginInfo")
+    public ResponseVO getLoginInfo(HttpServletResponse response, HttpServletRequest request){
+        UserLoginDto userLoginDto = userAuthComponent.resolveUser(request, response);
+        return getSuccessResponseVO(userLoginDto);
     }
 
     @RequestMapping("/logout")
     public ResponseVO logout(HttpServletRequest request,HttpServletResponse response){
-        String token = CookieUtil.getCookieToken(request);
-        if(token!=null){
-            UserLoginDto loginDto = (UserLoginDto) redisUtils.get(Constants.REDIS_KEY_LOGIN_TOKEN + token);
-            redisUtils.delete(Constants.REDIS_KEY_LOGIN_TOKEN+token);
-            if (loginDto != null && loginDto.getUserId() != null) {
-                redisUtils.delete(Constants.REDIS_KEY_USER_TOKEN + loginDto.getUserId());
-            }
-            Cookie cookie = new Cookie("token",null);
-            cookie.setMaxAge(0);
-            cookie.setPath("/");
-            response.addCookie(cookie);
-        }
+        userAuthComponent.logout(request, response);
         return ResponseVO.getSuccessResponseVO(null);
     }
 

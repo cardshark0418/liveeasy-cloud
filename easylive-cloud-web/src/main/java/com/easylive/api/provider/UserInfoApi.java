@@ -4,11 +4,11 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.easylive.auth.UserAuthComponent;
 import com.easylive.entity.constants.Constants;
 import com.easylive.entity.po.UserInfo;
 import com.easylive.entity.query.UserInfoQuery;
 import com.easylive.entity.vo.PaginationResultVO;
-import com.easylive.redis.RedisUtils;
 import com.easylive.service.UserInfoService;
 import com.github.yulichang.wrapper.MPJLambdaWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +35,7 @@ public class UserInfoApi {
     private UserInfoService userInfoService;
 
     @Resource
-    private RedisUtils redisUtils;
+    private UserAuthComponent userAuthComponent;
 
     @RequestMapping("/updateCoinCountInfo")
     public Integer updateCoinCountInfo(@NotEmpty String userId, @NotNull Integer count) {
@@ -90,10 +90,7 @@ public class UserInfoApi {
         userInfo.setUserId(userId);
         userInfoService.updateById(userInfo);
         if(status==0){
-            String token = (String) redisUtils.get(Constants.REDIS_KEY_USER_TOKEN + userId);
-            if(StrUtil.isEmpty(token)) return;
-            redisUtils.delete(Constants.REDIS_KEY_USER_TOKEN + userId);
-            redisUtils.delete(Constants.REDIS_KEY_LOGIN_TOKEN + token);
+            userAuthComponent.invalidateByUserId(userId);
         }
     }
 
